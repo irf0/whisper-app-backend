@@ -35,7 +35,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle sending a message in a room
-  socket.on('send-msg', ({ roomCode, message }) => {
+  socket.on('send-msg-room', ({ roomCode, message }) => {
     if (!roomCode || !message) return;
 
     const msgObj = {
