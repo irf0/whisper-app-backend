@@ -35,27 +35,25 @@ io.on('connection', (socket) => {
   });
 
   // Handle sending a message in a room
-  socket.on('send-msg-room', ({ roomCode, message }) => {
-    if (!roomCode || !message) return;
-
+  socket.on('send-msg-room', ({ room, fromUserId, message }) => {
+    if (!room || !message) return;
+  
     const msgObj = {
-      from: socket.id,
+      fromUserId,
       message,
       time: Date.now()
     };
-
-    // Store message
-    roomMessages[roomCode] = roomMessages[roomCode] || [];
-    roomMessages[roomCode].push(msgObj);
-
-    // Optional: limit message history to 100
-    if (roomMessages[roomCode].length > 100) {
-      roomMessages[roomCode].shift();
+  
+    roomMessages[room] = roomMessages[room] || [];
+    roomMessages[room].push(msgObj);
+  
+    if (roomMessages[room].length > 100) {
+      roomMessages[room].shift();
     }
-
-    // Broadcast to others
-    socket.to(roomCode).emit('receive-msg', msgObj);
+  
+    socket.to(room).emit('receive-msg', msgObj);
   });
+  
 
   // Panic button to wipe chats
   socket.on('panic', (roomCode) => {
