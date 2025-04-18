@@ -1,21 +1,12 @@
-const { io } = require("socket.io-client");
+const io = require("socket.io-client");
 
-const socket = io("http://localhost:3000");
+const socket = io('https://whisper-app-backend-e1cb.onrender.com'); 
 
 socket.on("connect", () => {
-  console.log("User A connected:", socket.id);
-  socket.emit("login", "userA");
-
-  // Send message after 2s
-  setTimeout(() => {
-    socket.emit("send-msg", {
-      fromUserId: "userA",
-      toUserId: "userB",
-      message: "Hey userB! It's userA ✌️"
-    });
-  }, 2000);
+  console.log("Client1 connected");
+  socket.emit("login", "user2");
 });
 
 socket.on("receive-msg", (data) => {
-  console.log("User A received message:", data);
+  console.log("Received message from user1:", data);
 });

@@ -1,7 +1,7 @@
-const express = require('express')
-const http = require('http')
-const cors = require('cors')
-const {Server} = require('socket.io')
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const { Server } = require('socket.io');
 
 const app = express();
 app.use(cors());
@@ -9,40 +9,68 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*"
+    origin: '*'
   }
 });
 
-let users = {}; // userId -> socketId
+// In-memory storage
+let roomMessages = {}; // { roomCode: [ { from, message, time }, ... ] }
 
 io.on('connection', (socket) => {
-  console.log('Connected:', socket.id);
+  console.log('🟢 Connected:', socket.id);
 
-  socket.on('login', (userId) => {
-    users[userId] = socket.id;
-    console.log(`${userId} logged in as ${socket.id}`);
+  // Join a secret-code based room
+  socket.on('join-room', (roomCode) => {
+    if (!roomCode) return;
+
+    socket.join(roomCode);
+    console.log(`${socket.id} joined room: ${roomCode}`);
+
+    if (!roomMessages[roomCode]) {
+      roomMessages[roomCode] = [];
+    }
+
+    // Send chat history to the new client
+    socket.emit('chat-history', roomMessages[roomCode]);
   });
 
-  socket.on('send-msg', ({ fromUserId, toUserId, message }) => {
-    const toSocketId = users[toUserId];
-    if (toSocketId) {
-      io.to(toSocketId).emit('receive-msg', {
-        fromUserId,
-        message
-      });
+  // Handle sending a message in a room
+  socket.on('send-msg', ({ roomCode, message }) => {
+    if (!roomCode || !message) return;
+
+    const msgObj = {
+      from: socket.id,
+      message,
+      time: Date.now()
+    };
+
+    // Store message
+    roomMessages[roomCode] = roomMessages[roomCode] || [];
+    roomMessages[roomCode].push(msgObj);
+
+    // Optional: limit message history to 100
+    if (roomMessages[roomCode].length > 100) {
+      roomMessages[roomCode].shift();
+    }
+
+    // Broadcast to others
+    socket.to(roomCode).emit('receive-msg', msgObj);
+  });
+
+  // Panic button to wipe chats
+  socket.on('panic', (roomCode) => {
+    if (roomMessages[roomCode]) {
+      delete roomMessages[roomCode];
+      io.to(roomCode).emit('panic-msg');
+      console.log(`⚠️ PANIC: Cleared messages in room ${roomCode}`);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('Disconnected:', socket.id);
-    Object.keys(users).forEach(uid => {
-      if (users[uid] === socket.id) {
-        delete users[uid];
-      }
-    });
+    console.log('🔴 Disconnected:', socket.id);
   });
 });
 
 server.listen(3000, () => {
-  console.log('Server is running on port 3000');
+  console.log('🚀 Server is running on port 3000');
 });
